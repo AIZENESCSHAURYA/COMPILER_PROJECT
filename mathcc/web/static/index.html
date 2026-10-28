@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compiler Design Project — Shaurya Sharma</title>
+<style>
+:root{
+  --ink:#1B2A41; --ink2:#243650; --ink-line:#34496a; --ink-text:#E7ECF3; --ink-dim:#9FB0C7;
+  --paper:#F2F4F6; --sheet:#FFFFFF; --rule:#D5DBE2; --text:#1D2733; --dim:#5B6877;
+  --proven:#0E7C86; --proven-bg:#E1F2F3; --gate:#B7791F; --gate-bg:#FBF0D9; --bad:#B3382C; --bad-bg:#F9E3E0;
+  --math: "Cambria Math", Cambria, "STIX Two Text", "Latin Modern Roman", Georgia, serif;
+  --ui: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--paper);color:var(--text);font:15px/1.5 var(--ui)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid #5AA9E6;outline-offset:2px}
+.app{display:grid;grid-template-columns:minmax(340px,440px) 1fr;min-height:100%}
+@media (max-width:900px){.app{grid-template-columns:1fr}}
+
+/* ---------- editor side ---------- */
+.side{background:var(--ink);color:var(--ink-text);padding:22px 22px 28px;display:flex;flex-direction:column;gap:18px}
+.brand{display:flex;align-items:baseline;gap:10px}
+.brand h1{margin:0;font:600 22px var(--mono);letter-spacing:-.02em}
+.brand span{color:var(--ink-dim);font-size:13px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.side label{color:var(--ink-dim);font-size:13px}
+select,input[type=text],input[type=number]{background:var(--ink2);border:1px solid var(--ink-line);border-radius:6px;padding:6px 9px;color:var(--ink-text)}
+.editor{position:relative;display:flex;background:#12203A;border:1px solid var(--ink-line);border-radius:8px;overflow:hidden;min-height:300px;flex:1}
+.gutter{padding:12px 8px 12px 10px;text-align:right;color:#5E7396;font:13px/1.6 var(--mono);user-select:none;border-right:1px solid var(--ink-line);white-space:pre;overflow:hidden}
+.gutter .err{color:#FF9A8F;font-weight:700}
+textarea#src{flex:1;background:transparent;border:0;resize:none;padding:12px;color:#E7ECF3;font:13.5px/1.6 var(--mono);tab-size:2;white-space:pre;overflow:auto;outline:none}
+.editor:focus-within{border-color:#5AA9E6}
+fieldset{border:1px solid var(--ink-line);border-radius:8px;margin:0;padding:12px 14px 14px;display:grid;gap:12px}
+legend{padding:0 6px;color:var(--ink-dim);font-size:13px}
+.seg{display:inline-flex;border:1px solid var(--ink-line);border-radius:7px;overflow:hidden}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{padding:6px 11px;cursor:pointer;color:var(--ink-text);font-size:13px;border-right:1px solid var(--ink-line)}
+.seg label:last-of-type{border-right:0}
+.seg input:checked+label{background:#E7ECF3;color:var(--ink);font-weight:600}
+.seg input:focus-visible+label{outline:2px solid #5AA9E6;outline-offset:-2px}
+.hint{font-size:12.5px;color:var(--ink-dim);margin:0}
+.chk{display:flex;gap:8px;align-items:flex-start;color:var(--ink-text);font-size:14px}
+.chk small{display:block;color:var(--ink-dim);font-size:12.5px}
+.run{background:#F2C14E;color:#1B2A41;border:0;border-radius:8px;padding:11px 16px;font-weight:700;font-size:15px;cursor:pointer}
+.run:hover{background:#F7CE6B}.run:disabled{opacity:.6;cursor:progress}
+kbd{font:12px var(--mono);background:var(--ink2);border:1px solid var(--ink-line);border-radius:4px;padding:1px 5px;color:var(--ink-dim)}
+
+/* ---------- results side ---------- */
+.main{padding:22px 28px 60px;min-width:0}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--rule);margin-bottom:22px;overflow-x:auto}
+.tabs button{background:none;border:0;padding:10px 14px;cursor:pointer;color:var(--dim);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--text);font-weight:600;border-bottom-color:var(--ink)}
+.status{min-height:24px;color:var(--dim);font-size:14px;margin:-8px 0 16px}
+.error{background:var(--bad-bg);border:1px solid #E7B5AE;color:#7B231A;border-radius:8px;padding:12px 14px;font:13.5px/1.5 var(--mono);white-space:pre-wrap}
+.empty{color:var(--dim);padding:40px 0}
+
+.rewrite{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:18px 22px;margin-bottom:16px}
+.rewrite h3{margin:0 0 10px;font:600 14px var(--mono);color:var(--dim)}
+.before{font:19px/1.4 var(--math);color:#7B8794;text-decoration:line-through;text-decoration-color:#C3CAD3;text-decoration-thickness:1.5px;overflow-wrap:anywhere}
+.after{font:32px/1.25 var(--math);color:var(--ink);margin:4px 0 14px;overflow-wrap:anywhere}
+.after.same{color:var(--dim)}
+.gates{display:flex;flex-wrap:wrap;gap:8px}
+.gate{display:inline-flex;gap:7px;align-items:baseline;border-radius:6px;padding:4px 10px;font-size:13.5px}
+.gate code{font:13px var(--mono)}
+.gate.run-time{background:var(--gate-bg);color:#6B4709;border-left:4px solid var(--gate)}
+.gate.proven{background:var(--proven-bg);color:#07575E;border-left:4px solid var(--proven)}
+.gate.none{background:#EEF1F4;color:var(--dim);border-left:4px solid #B8C1CC}
+.gate.skip{background:var(--bad-bg);color:#7B231A;border-left:4px solid var(--bad)}
+.meta{margin-top:12px;color:var(--dim);font-size:13.5px;display:flex;flex-wrap:wrap;gap:4px 18px}
+.evalline{margin-top:12px;padding-top:12px;border-top:1px dashed var(--rule);font-size:14px}
+.evalline b{font-family:var(--mono);font-weight:600}
+.note{margin-top:8px;font-size:13.5px;color:var(--dim)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--dim);margin:0 0 18px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+pre.code{background:var(--ink);color:#DCE5F2;border-radius:10px;padding:16px 18px;font:13px/1.6 var(--mono);overflow:auto;margin:0 0 16px;max-height:520px}
+.pick{display:flex;gap:10px;align-items:center;margin-bottom:12px}
+.pick select{background:var(--sheet);color:var(--text);border-color:var(--rule)}
+h2{font:600 18px var(--ui);margin:26px 0 10px}
+h2:first-child{margin-top:0}
+table{width:100%;border-collapse:collapse;background:var(--sheet);border:1px solid var(--rule);border-radius:10px;overflow:hidden;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:600;background:#F7F8FA;color:var(--dim)}
+tr:last-child td{border-bottom:0}
+td.num{font-variant-numeric:tabular-nums}
+td.mono{font-family:var(--mono);font-size:13px}
+.good{color:var(--proven);font-weight:600}.badtxt{color:var(--bad);font-weight:600}
+.stat{display:flex;gap:28px;flex-wrap:wrap;margin:0 0 14px}
+.stat div{font-size:13.5px;color:var(--dim)}.stat b{display:block;font:600 26px var(--math);color:var(--text)}
+.btn2{background:var(--sheet);border:1px solid var(--ink);color:var(--ink);border-radius:8px;padding:9px 14px;cursor:pointer;font-weight:600}
+.btn2:hover{background:var(--ink);color:#fff}.btn2:disabled{opacity:.6;cursor:progress}
+.bars{display:grid;gap:18px}
+.bar{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:14px 18px}
+.bar h3{margin:0 0 10px;font:600 14px var(--mono);color:var(--dim);display:flex;justify-content:space-between}
+.bl{display:grid;grid-template-columns:150px 1fr 80px;gap:10px;align-items:center;font-size:13.5px;margin:5px 0}
+.track{height:12px;background:#EDF0F3;border-radius:3px;overflow:hidden}
+.fill{height:100%;border-radius:3px}
+.bl .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--dim)}
+.rule td:first-child,.rule td:nth-child(2){font-family:var(--math);font-size:16px}
+.pill{display:inline-block;border-radius:5px;padding:1px 8px;font-size:12.5px;background:#EEF1F4;color:var(--dim)}
+.pill.c{background:var(--gate-bg);color:#6B4709}
+
+/* ---------- opening: wrong rewrites fly away ---------- */
+#intro{position:fixed;inset:0;z-index:50;overflow:hidden;background:var(--paper);display:grid;place-items:center}
+#intro .title{position:relative;z-index:1;text-align:center;color:var(--ink);pointer-events:none}
+#intro .title h2{margin:0;font:600 clamp(28px,5.2vw,56px)/1.05 var(--mono);letter-spacing:-.03em}
+#intro .title p{margin:10px 0 0;font:19px var(--math);color:var(--dim)}
+#intro .sheet{position:absolute;left:50%;top:50%;width:min(250px,56vw);aspect-ratio:3/4;margin:calc(min(250px,56vw)*-.667) 0 0 calc(min(250px,56vw)*-.5);
+  background:#fff;border:1px solid #D5DBE2;border-radius:3px;box-shadow:0 6px 18px rgba(27,42,65,.16);padding:16px 16px;z-index:2;will-change:transform;
+  background-image:repeating-linear-gradient(transparent 0 25px,#E6EBF1 25px 26px);background-position:0 12px}
+#intro .sheet div{font:21px/26px var(--math);color:var(--ink);white-space:nowrap}
+#intro .sheet .x{text-decoration:line-through;text-decoration-color:var(--bad);text-decoration-thickness:2px}
+#intro .sheet .q{color:var(--bad);font:600 13px var(--mono);margin-top:4px}
+#intro .skip{position:absolute;right:20px;bottom:18px;z-index:3;background:none;border:1px solid var(--rule);border-radius:7px;padding:6px 12px;color:var(--dim);cursor:pointer}
+#intro .skip:hover{background:#fff}
+
+
+/* ---------- site chrome ---------- */
+.site{background:var(--ink);color:var(--ink-text);display:flex;gap:6px 26px;align-items:center;flex-wrap:wrap;padding:10px 24px;position:sticky;top:0;z-index:20;border-bottom:1px solid var(--ink-line)}
+.site .brand{display:block;text-decoration:none;color:var(--ink-text);font:600 16px var(--mono);letter-spacing:-.01em}
+.site nav{display:flex;gap:2px;flex-wrap:wrap}
+.site nav a{color:var(--ink-dim);text-decoration:none;padding:7px 11px;border-radius:6px;font-size:14.5px}
+.site nav a:hover{color:#fff;background:var(--ink2)}
+.site nav a[aria-current=page]{color:var(--ink);background:#E7ECF3;font-weight:600}
+.site .who{margin-left:auto;font-size:13.5px;color:var(--ink-dim);text-align:right;line-height:1.35}
+.site .who b{color:var(--ink-text);font-weight:600}
+.page{display:none}.page.on{display:block}
+#view-workbench .app{min-height:calc(100vh - 58px)}
+.wrap{max-width:1080px;margin:0 auto;padding:44px 28px 70px}
+.prose{max-width:68ch}
+.prose p,.prose li{font-size:16.5px;line-height:1.65}
+.wrap h1{font:600 clamp(30px,4.4vw,46px)/1.12 var(--math);letter-spacing:-.01em;margin:0 0 14px;color:var(--ink)}
+.wrap h2{font:600 26px/1.2 var(--math);margin:46px 0 12px;color:var(--ink)}
+.wrap h3{font:600 18px/1.3 var(--ui);margin:26px 0 6px}
+.lead{font:21px/1.5 var(--math);color:#33435A;max-width:46ch;margin:0 0 22px}
+.btnrow{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 0}
+.btn{display:inline-block;border-radius:8px;padding:11px 18px;font-weight:600;text-decoration:none;font-size:15px;border:1px solid var(--ink);cursor:pointer}
+.btn.primary{background:var(--ink);color:#fff}.btn.primary:hover{background:var(--ink2)}
+.btn.ghost{background:transparent;color:var(--ink)}.btn.ghost:hover{background:var(--ink);color:#fff}
+.hero{display:grid;grid-template-columns:1.1fr .9fr;gap:44px;align-items:center}
+@media (max-width:880px){.hero{grid-template-columns:1fr}}
+.specimen{background:var(--sheet);border:1px solid var(--rule);border-radius:10px;padding:22px 24px;box-shadow:0 10px 30px rgba(27,42,65,.08)}
+.specimen .cap{margin:14px 0 0;color:var(--dim);font-size:14.5px;line-height:1.55}
+.facts{margin:0;padding:0;list-style:none;display:grid;gap:12px;max-width:72ch}
+.facts li{padding-left:16px;border-left:3px solid var(--proven);font-size:16px;line-height:1.55}
+.facts b{font-variant-numeric:tabular-nums}
+.defs{display:grid;grid-template-columns:minmax(150px,230px) 1fr;gap:12px 28px;max-width:860px;margin:0}
+.defs dt{font-weight:600;color:var(--ink)}.defs dd{margin:0;color:#33435A;line-height:1.6}
+@media (max-width:640px){.defs{grid-template-columns:1fr;gap:2px}.defs dd{margin-bottom:12px}}
+.wrap table{margin:12px 0 4px}
+.wrap td code,.prose code{font:14px var(--mono);background:#E8EDF2;padding:1px 6px;border-radius:4px}
+pre.snip{background:var(--ink);color:#DCE5F2;border-radius:10px;padding:14px 16px;font:13.5px/1.6 var(--mono);overflow:auto;margin:12px 0;max-width:760px}
+.callout{border-left:4px solid var(--gate);background:var(--gate-bg);padding:14px 18px;border-radius:0 8px 8px 0;max-width:72ch;font-size:16px;line-height:1.6;color:#4C3306}
+.callout.teal{border-left-color:var(--proven);background:var(--proven-bg);color:#07454B}
+.pipe{width:100%;max-width:940px;height:auto;margin:14px 0}
+.pipe text{font:14px var(--ui);fill:#1D2733}.pipe .t2{fill:#5B6877;font-size:12.5px}.pipe .bx{fill:#fff;stroke:#9FB0C7;stroke-width:1.5}
+.contrib{padding:6px 0 26px;border-bottom:1px solid var(--rule);max-width:900px}
+.contrib:last-of-type{border-bottom:0}
+.contrib h3{font:600 21px/1.25 var(--math);margin:22px 0 8px}
+.contrib p{margin:6px 0;max-width:68ch;line-height:1.65}
+.contrib .where{font:13px var(--mono);color:var(--dim)}
+.refs{list-style:none;margin:0;padding:0;display:grid;gap:18px;max-width:860px}
+.refs li{padding:0 0 18px;border-bottom:1px solid var(--rule)}
+.refs li:last-child{border-bottom:0}
+.refs .t{font:600 17px/1.35 var(--ui)}
+.refs .t a{color:var(--ink);text-decoration-color:#9FB0C7;text-underline-offset:3px}
+.refs .m{color:var(--dim);font-size:14px;margin:2px 0 6px}
+.refs .u{margin:0;font-size:15.5px;line-height:1.6;max-width:68ch}
+.refs .u b{color:var(--proven)}
+.idcard{display:grid;grid-template-columns:auto 1fr;gap:6px 22px;max-width:520px;padding:18px 22px;border:1px solid var(--rule);border-radius:10px;background:var(--sheet);margin:6px 0 0}
+.idcard dt{color:var(--dim);font-size:14px}.idcard dd{margin:0;font-weight:600}
+footer.site-foot{background:var(--ink);color:var(--ink-dim);padding:18px 24px;font-size:14px;display:flex;gap:8px 24px;flex-wrap:wrap;justify-content:space-between}
+footer.site-foot b{color:var(--ink-text)}
+details.why{margin-top:14px;border-top:1px dashed var(--rule);padding-top:10px}
+details.why summary{cursor:pointer;font-weight:600;color:var(--ink);padding:4px 0}
+details.why ol{margin:10px 0 0;padding:0;list-style:none;display:grid;gap:14px}
+details.why li{border-left:3px solid #B8C1CC;padding:2px 0 2px 14px}
+details.why .ex{font:19px/1.45 var(--math);overflow-wrap:anywhere}
+details.why .ex s{color:#7B8794;text-decoration-color:#C3CAD3}
+details.why .ex span{color:var(--dim);padding:0 6px}
+details.why .say{margin:4px 0 0;font-size:14.5px;line-height:1.55;color:#33435A}
+details.why .say.p{color:#07575E}details.why .say.r{color:#6B4709}
+details.why .rule{font:12.5px var(--mono);color:var(--dim)}
+details.why li.rt{border-left-color:var(--gate)}details.why li.pv{border-left-color:var(--proven)}
+details.why .skipline{margin-top:12px;padding:10px 12px;background:var(--bad-bg);border-radius:6px;font-size:14px;color:#7B231A}
+
+@media (prefers-reduced-motion:no-preference){.fill{transition:width .5s ease}}
+</style>
+</head>
+<body>
+<div id="intro" aria-hidden="true">
+  <div class="title"><h2>Compiler Design Project</h2><p>Simplify only what is true.</p></div>
+  <button class="skip" id="skip" type="button">Skip</button>
+</div>
+<header class="site">
+  <a class="brand" href="#home">Compiler Design Project</a>
+  <nav aria-label="Main">
+    <a href="#home" data-route="home">Home</a>
+    <a href="#workbench" data-route="workbench">Workbench</a>
+    <a href="#novelty" data-route="novelty">What is new</a>
+    <a href="#references" data-route="references">References</a>
+    <a href="#about" data-route="about">About</a>
+  </nav>
+  <div class="who"><b>Shaurya Sharma</b><br>Reg. No. 24BDS0194</div>
+</header>
+<div id="view-home" class="page">
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <h1>Compiler Design Project</h1>
+      <p class="lead">A compiler for mathematical expressions that only simplifies what is actually true.</p>
+      <div class="btnrow"><a class="btn primary" href="#workbench">Open the workbench</a><a class="btn ghost" href="#novelty">What is new here</a></div>
+    </div>
+    <div class="specimen" aria-label="Example rewrite">
+      <div class="before">x*x/x</div>
+      <div class="after">x</div>
+      <div class="gates"><span class="gate run-time">Checked at run time <code>x != 0</code></span></div>
+      <p class="cap">Most algebra systems return <code>x</code> and stop. At <code>x = 0</code> the original expression has no answer, but <code>x</code> does. This compiler adds a check and falls back to the original expression when the check fails.</p>
+    </div>
+  </div>
+
+  <h2>What you can do with it</h2>
+  <dl class="defs">
+    <dt>Type an expression</dt><dd>Write expressions such as <code>sqrt(x^2)</code> or <code>d(x^3*sin(x), x)</code>, with optional assumptions like <code>assume y &gt; 0</code>.</dd>
+    <dt>See what changed and why</dt><dd>Each result shows the original struck through, the simplified form, and a step-by-step explanation of every rewrite and every condition it depends on.</dd>
+    <dt>Get fast code</dt><dd>The compiler produces three-address code, a small virtual machine program, and C source with the checks built in.</dd>
+    <dt>Check the work</dt><dd>An independent checker tests every rewrite step, and a comparison runs the compiled code against the original on thousands of inputs.</dd>
+    <dt>Find new rules</dt><dd>A search over thousands of small expressions finds identities the simplifier does not know, together with the conditions under which they hold.</dd>
+  </dl>
+
+  <h2>Evidence</h2>
+  <ul class="facts">
+    <li>On 20,000 random inputs per expression, the guarded compiler gave <b>0</b> wrong results. A typical unguarded simplifier gave <b>339</b>, <b>9,831</b> and <b>286</b> wrong results on three of the demo expressions.</li>
+    <li>More than <b>5,000</b> randomly generated expressions were compiled and compared with the originals on the final version, and many more during development. The comparisons found real bugs along the way, all fixed.</li>
+    <li>Compiled code ran <b>2 to 28 times</b> faster than a plain tree-walking evaluator on the demo expressions.</li>
+    <li>Every rewrite is logged and re-tested by a separate checker that also looks for a counterexample with the guard removed, so each run-time check is shown to be necessary.</li>
+  </ul>
+  <p style="margin-top:28px"><a class="btn primary" href="#workbench">Try it on your own expression</a></p>
+</div>
+</div>
+<div id="view-workbench" class="page">
+<div class="app">
+  <section class="side" aria-label="Program and options">
+    <div class="brand"><h1>Workbench</h1><span>type an expression, see every step</span></div>
+
+    <div class="row">
+      <label for="example">Load example</label>
+      <select id="example"></select>
+    </div>
+
+    <div class="editor">
+      <div class="gutter" id="gutter" aria-hidden="true">1</div>
+      <textarea id="src" spellcheck="false" aria-label="Program source" autocapitalize="off" autocomplete="off"></textarea>
+    </div>
+
+    <fieldset>
+      <legend>Rewrite policy</legend>
+      <div class="seg" role="radiogroup" aria-label="Rewrite policy">
+        <input type="radio" name="mode" id="m1" value="guarded" checked><label for="m1">Guarded</label>
+        <input type="radio" name="mode" id="m2" value="conservative"><label for="m2">Conservative</label>
+        <input type="radio" name="mode" id="m3" value="unsafe"><label for="m3">Classic (unsafe)</label>
+      </div>
+      <p class="hint" id="modehint"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>Checks</legend>
+      <label class="chk"><input type="checkbox" id="stable"><span>Prefer numerically stable forms<small>Tries expm1, log1p and half-angle rewrites and keeps the more accurate one.</small></span></label>
+      <label class="chk"><input type="checkbox" id="cert" checked><span>Check every rewrite step<small>An independent checker tests each rewrite and tries to break it without its guard.</small></span></label>
+      <div class="row"><label for="point">Test point</label><input type="text" id="point" placeholder="x=0, y=2" size="14" style="flex:1"></div>
+      <div class="row">
+        <label for="verify">Compare on</label><input type="number" id="verify" value="5000" min="0" max="200000" style="width:90px"><label>random inputs</label>
+      </div>
+      <div class="row">
+        <label for="bench">Time</label><input type="number" id="bench" value="1000000" min="0" max="5000000" step="100000" style="width:110px"><label>evaluations</label>
+      </div>
+    </fieldset>
+
+    <button class="run" id="run">Compile</button>
+    <p class="hint">Run with <kbd>Ctrl</kbd> + <kbd>Enter</kbd>. Assumptions like <code>assume y &gt; 0</code> let the compiler prove guards instead of checking them while the program runs.</p>
+  </section>
+
+  <main class="main">
+    <div class="tabs" role="tablist" aria-label="Results">
+      <button role="tab" aria-selected="true" data-tab="rewrites">Rewrites</button>
+      <button role="tab" aria-selected="false" data-tab="code">Generated code</button>
+      <button role="tab" aria-selected="false" data-tab="checks">Correctness</button>
+      <button role="tab" aria-selected="false" data-tab="speed">Speed</button>
+      <button role="tab" aria-selected="false" data-tab="discover">Rule discovery</button>
+    </div>
+    <div class="status" id="status" role="status" aria-live="polite"></div>
+    <div id="panel"></div>
+  </main>
+</div>
+</div>
+<div id="view-novelty" class="page">
+<div class="wrap">
+  <h1>What is new in this project</h1>
+  <p class="lead">Simplifying an expression is easy. Simplifying it without quietly changing what it computes is the hard part.</p>
+
+  <h2>The problem</h2>
+  <div class="prose">
+    <p>Every algebra system applies rules such as <code>x/x = 1</code>. These rules are true on paper, but a computer evaluates the original expression on real numbers, and at some inputs the original and the simplified form disagree.</p>
+  </div>
+  <table>
+    <tr><th>Common rewrite</th><th>Fails when</th><th>What this compiler does</th></tr>
+    <tr><td><code>x/x → 1</code></td><td><code>x = 0</code>: the original is undefined (NaN)</td><td>Adds the condition <code>x ≠ 0</code></td></tr>
+    <tr><td><code>sqrt(x²) → x</code></td><td><code>x &lt; 0</code>: the answer is <code>-x</code></td><td>Rewrites to <code>abs(x)</code>, which is always right</td></tr>
+    <tr><td><code>sqrt(z)·sqrt(z) → z</code></td><td><code>z &lt; 0</code>: the original is NaN</td><td>Adds the condition <code>z ≥ 0</code></td></tr>
+    <tr><td><code>ln(exp(x)) → x</code></td><td><code>exp(x)</code> overflows or underflows</td><td>Adds the condition that <code>exp(x)</code> is finite and not zero</td></tr>
+  </table>
+
+  <h2>How the compiler decides</h2>
+  <p class="prose" style="margin-bottom:0">Every sub-expression carries three facts: a range of possible values, whether zero is excluded, and whether it is certainly a finite number. They come from your <code>assume</code> lines. Each rewrite states the condition it needs and the compiler decides one of three ways.</p>
+  <svg class="pipe" viewBox="0 0 940 330" role="img" aria-label="Decision flow: expression is parsed, facts are computed, each rewrite condition is proven, unknown or false">
+    <defs><marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 z" fill="#5B6877"/></marker></defs>
+    <rect class="bx" x="6" y="120" width="140" height="64" rx="8"/><text x="76" y="148" text-anchor="middle">Expression</text><text class="t2" x="76" y="168" text-anchor="middle">and assumptions</text>
+    <rect class="bx" x="196" y="120" width="150" height="64" rx="8"/><text x="271" y="148" text-anchor="middle">Parse and build</text><text class="t2" x="271" y="168" text-anchor="middle">a shared DAG</text>
+    <rect class="bx" x="396" y="120" width="170" height="64" rx="8"/><text x="481" y="148" text-anchor="middle">Facts per node</text><text class="t2" x="481" y="168" text-anchor="middle">range, zero?, finite?</text>
+    <rect class="bx" x="616" y="120" width="150" height="64" rx="8"/><text x="691" y="148" text-anchor="middle">Rewrite needs</text><text class="t2" x="691" y="168" text-anchor="middle">condition C</text>
+    <path d="M146 152 H190" stroke="#5B6877" stroke-width="1.6" marker-end="url(#ar)"/><path d="M346 152 H390" stroke="#5B6877" stroke-width="1.6" marker-end="url(#ar)"/><path d="M566 152 H610" stroke="#5B6877" stroke-width="1.6" marker-end="url(#ar)"/>
+    <path d="M766 140 C800 90 810 50 830 50" fill="none" stroke="#0E7C86" stroke-width="1.8" marker-end="url(#ar)"/>
+    <path d="M766 152 H826" fill="none" stroke="#B7791F" stroke-width="1.8" marker-end="url(#ar)"/>
+    <path d="M766 164 C800 214 810 262 830 262" fill="none" stroke="#B3382C" stroke-width="1.8" marker-end="url(#ar)"/>
+    <rect x="832" y="14" width="102" height="72" rx="8" fill="#E1F2F3" stroke="#0E7C86" stroke-width="1.5"/><text x="883" y="42" text-anchor="middle">C is proven</text><text class="t2" x="883" y="62" text-anchor="middle">apply, no cost</text>
+    <rect x="832" y="116" width="102" height="72" rx="8" fill="#FBF0D9" stroke="#B7791F" stroke-width="1.5"/><text x="883" y="140" text-anchor="middle">C is unknown</text><text class="t2" x="883" y="158" text-anchor="middle">apply + check</text><text class="t2" x="883" y="174" text-anchor="middle">while running</text>
+    <rect x="832" y="226" width="102" height="72" rx="8" fill="#F9E3E0" stroke="#B3382C" stroke-width="1.5"/><text x="883" y="254" text-anchor="middle">C is false</text><text class="t2" x="883" y="274" text-anchor="middle">skip rewrite</text>
+    <text class="t2" x="480" y="312" text-anchor="middle">If a run-time check fails, the compiled program runs the original expression instead.</text>
+  </svg>
+
+  <h2>The four new parts</h2>
+
+  <div class="contrib">
+    <h3>1. Guarded rewriting with run-time fallback</h3>
+    <p><b>Idea.</b> A rewrite carries a condition about any sub-expression, not just a variable. If the assumptions prove the condition, the rewrite is free. If not, the condition becomes an extra output of the compiled program. When it is false at run time, the program evaluates the original expression, so the result is always the same as the original.</p>
+    <p><b>Example.</b> <code>(w+1)/(w+1)</code> becomes <code>1</code> with the check <code>w + 1 ≠ 0</code>. At <code>w = -1</code> the check fails and the program returns NaN, like the original.</p>
+    <p><b>Evidence.</b> 0 wrong results against the original over 20,000 inputs per expression, where the classic approach is wrong thousands of times.</p>
+    <p class="where">src/simplify.hpp, src/backend.hpp</p>
+  </div>
+
+  <div class="contrib">
+    <h3>2. Rewrites that check themselves</h3>
+    <p><b>Idea.</b> Every rewrite is recorded as before, after, and the conditions it relied on. A separate checker samples inputs that satisfy those conditions and confirms before and after agree, including NaN. It then removes each run-time condition and looks for an input where the rewrite breaks, which shows the condition is necessary.</p>
+    <p><b>Example.</b> For <code>x*x/x → x</code> it reports: with the guard dropped, at <code>x = 0</code> the result is <code>0</code> but the original gives NaN.</p>
+    <p><b>Evidence.</b> On the demo, 12 of 12 steps verified and 3 of 3 conditional steps have a concrete counterexample.</p>
+    <p class="where">src/analysis.hpp: certify</p>
+  </div>
+
+  <div class="contrib">
+    <h3>3. Accuracy-aware choice of form</h3>
+    <p><b>Idea.</b> Some equal expressions lose accuracy on a computer. The compiler tries stable equivalents and measures each one against a higher-precision evaluation, then keeps the more accurate form unless it costs much more.</p>
+    <p><b>Example.</b> <code>exp(x) - 1</code> becomes <code>expm1(x)</code>, and <code>1 - cos x</code> becomes <code>2 sin²(x/2)</code>. The worst relative error falls from about 1e-4 to 5e-8 for the second one.</p>
+    <p class="where">src/simplify.hpp: stab, src/analysis.hpp: measuredError</p>
+  </div>
+
+  <div class="contrib">
+    <h3>4. Finding new rules, with their conditions</h3>
+    <p><b>Idea.</b> The compiler enumerates about 18,000 small expressions and groups those that behave the same on a region of inputs: everywhere, <code>x ≠ 0</code>, <code>x ≥ 0</code>, <code>x &gt; 0</code> or <code>x &lt; 0</code>. A pair that agrees only on a region becomes a rule with that region as its side condition. Each rule is re-tested on fresh inputs.</p>
+    <p><b>Example.</b> It found <code>2·ln(x) = ln(x·x)</code> when <code>x ≥ 0</code>, which is a weaker condition than the one the simplifier used before.</p>
+    <p class="where">src/analysis.hpp: discoverRules</p>
+  </div>
+
+  <h2>How it compares with existing work</h2>
+  <table>
+    <tr><th>Existing work</th><th>What it does</th><th>What it does not do</th></tr>
+    <tr><td>REDUCE GUARDIAN</td><td>Computes degenerate cases as guarded expressions</td><td>Stays symbolic; does not produce executable code with a fallback</td></tr>
+    <tr><td>Maple, Mathematica, MATLAB <code>assume</code></td><td>Use assumptions to simplify further</td><td>Drop degenerate cases silently when assumptions are missing</td></tr>
+    <tr><td>Herbie</td><td>Improves floating-point accuracy by searching equivalent forms</td><td>Its rewrite rules were historically unsound; it does not give a fallback guarantee</td></tr>
+    <tr><td>Ruler</td><td>Infers rewrite rules automatically</td><td>Does not attach inferred side conditions in the way part 4 does</td></tr>
+  </table>
+  <p class="prose">The distinct contribution is the combination in one small compiler: conditions proven from facts when possible, a run-time check with exact fallback otherwise, a checker that tests every step, and accuracy-aware selection.</p>
+
+  <h2>What is not claimed</h2>
+  <div class="prose">
+    <ul>
+      <li>The checks are randomised tests. They are strong evidence, not a formal proof.</li>
+      <li>The compiler is not an e-graph. It rewrites in one pass.</li>
+      <li>Results equal the original in IEEE double precision, with stated exceptions: inputs are finite, <code>+0</code> and <code>-0</code> are treated as equal, and equivalent forms may differ by a few units in the last place.</li>
+      <li>It does not expand or factor polynomials, so <code>(x²−1)/(x−1)</code> is left alone.</li>
+    </ul>
+  </div>
+  <div class="callout">
+    <b>Patents.</b> Each idea above has related published work, so this project cannot be assumed to be patentable. India's Patents Act (Section 3(k)) excludes computer programs and algorithms as such. A prior-art search by a patent attorney would be needed before any claim. A paper at a compilers or floating-point workshop is the more realistic next step.
+  </div>
+
+  <h2>Bugs the testing found</h2>
+  <div class="prose">
+    <p>A random-expression tester compiled thousands of expressions and compared each with its original. It found real mistakes in early versions, which are now fixed:</p>
+    <ul>
+      <li>Merging fractional powers was unsound at negative infinity, so it now requires <code>x ≥ 0</code>.</li>
+      <li>A zero coefficient dropped the other factors, turning <code>0·ln z</code> into <code>0</code> even for <code>z &lt; 0</code>.</li>
+      <li><code>ln(exp y) → y</code> also needs <code>exp y</code> not to overflow or underflow.</li>
+      <li><code>x/x</code> computed as <code>x·(1/x)</code> is not exactly 1 in floating point, so division is kept as division.</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<div id="view-references" class="page">
+<div class="wrap">
+  <h1>References and inspiration</h1>
+  <p class="lead">This project sits between computer algebra and floating-point compilers. The works below are the closest prior work and the background for its design.</p>
+  <div class="prose"><p>Each entry says how the project relates to it. The closest works were identified while checking what already exists, so they are listed as prior art and context.</p></div>
+
+  <h2>Closest to this project</h2>
+  <ul class="refs">
+    <li>
+      <div class="t"><a href="https://reduce-algebra.sourceforge.io/manual/manualse153.html" target="_blank" rel="noopener">GUARDIAN: Guarded Expressions in Practice</a></div>
+      <div class="m">A. Dolzmann and T. Sturm. REDUCE computer algebra system manual, section 20.27.</div>
+      <p class="u"><b>Closest prior idea.</b> It observes that algebra systems turn <code>x/x</code> into <code>1</code> and drop the case <code>x = 0</code>, and proposes keeping the degenerate cases as guarded expressions. This project applies the same idea to generated code and adds a run-time fallback.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://herbie.uwplse.org" target="_blank" rel="noopener">Herbie: Automatically Improving Accuracy for Floating Point Expressions</a></div>
+      <div class="m">P. Panchekha, A. Sanchez-Stern, J. R. Wilcox, Z. Tatlock. PLDI 2015.</div>
+      <p class="u"><b>Accuracy part.</b> Herbie compares candidate rewrites against high-precision evaluation and keeps the most accurate. The stable-form selection here uses the same measurement idea on a much smaller set of rewrites.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://arxiv.org/abs/2304.04332" target="_blank" rel="noopener">Better Together: Unifying Datalog and Equality Saturation</a></div>
+      <div class="m">Zhang et al. PLDI 2023. arXiv:2304.04332.</div>
+      <p class="u"><b>Why conditions matter.</b> It describes Herbie's unsound rewrite rules and shows rules that are only correct under conditions, for example a fraction rule that requires <code>b ≠ 0</code>, and uses interval analysis to make them sound. This supports using interval facts as the core of the design.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://arxiv.org/abs/2108.10436" target="_blank" rel="noopener">Rewrite Rule Inference Using Equality Saturation</a></div>
+      <div class="m">Nandi et al. OOPSLA 2021. arXiv:2108.10436. (Ruler)</div>
+      <p class="u"><b>Rule discovery part.</b> Ruler infers rewrite rules by enumerating terms and comparing their behavior. The discovery tool here uses the same enumerate-and-compare idea and adds regions of inputs, so a rule found on <code>x ≥ 0</code> carries that condition.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://egraphs-good.github.io" target="_blank" rel="noopener">egg: Fast and Extensible Equality Saturation</a></div>
+      <div class="m">M. Willsey et al. POPL 2021.</div>
+      <p class="u"><b>Not used, but compared.</b> Equality saturation explores many equal forms at once. This project rewrites in a single pass, which is simpler and faster to compile; an e-graph is listed as future work.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://arxiv.org/abs/2410.14025" target="_blank" rel="noopener">Target-Aware Implementation of Real Expressions</a></div>
+      <div class="m">arXiv:2410.14025.</div>
+      <p class="u"><b>Cost-aware choice.</b> It selects among equivalent implementations using a cost and accuracy model, as the stability step here does in miniature.</p>
+    </li>
+  </ul>
+
+  <h2>Background and related</h2>
+  <ul class="refs">
+    <li>
+      <div class="t"><a href="https://www.advanpix.com/2017/06/23/implicit-assumptions-the-dark-side-of-computer-algebra-systems/" target="_blank" rel="noopener">Implicit assumptions: the dark side of computer algebra systems</a></div>
+      <div class="m">P. Holoborodko. Advanpix blog, 2017.</div>
+      <p class="u">Shows how symbolic engines make unstated assumptions about variables. A practical statement of the problem this project addresses.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://www.academia.edu/29190940/Interval_Arithmetic_Extended_Numbers_and_Computer_Algebra_Systems" target="_blank" rel="noopener">Interval Arithmetic, Extended Numbers and Computer Algebra Systems</a></div>
+      <div class="m">Academia.edu.</div>
+      <p class="u">Discusses values for which <code>x - x = 0</code> and <code>x/x = 1</code> fail, such as infinity and NaN. The compiler tracks "certainly finite" for the same reason.</p>
+    </li>
+    <li>
+      <div class="t"><a href="https://arxiv.org/abs/1203.1350" target="_blank" rel="noopener">Simplifying products of fractional powers of powers</a></div>
+      <div class="m">arXiv:1203.1350.</div>
+      <p class="u">Treats when fractional powers can be combined. This is the topic behind the conditions on merging exponents such as <code>sqrt(z)·sqrt(z)</code>.</p>
+    </li>
+    <li>
+      <div class="t">What Every Computer Scientist Should Know About Floating-Point Arithmetic</div>
+      <div class="m">D. Goldberg. ACM Computing Surveys 23(1), 1991.</div>
+      <p class="u">The reference for cancellation, rounding and why equal expressions differ on a computer, which underlies the accuracy part.</p>
+    </li>
+    <li>
+      <div class="t">Interval Analysis</div>
+      <div class="m">R. E. Moore. Prentice-Hall, 1966.</div>
+      <p class="u">The source of interval arithmetic, used here to prove conditions from assumptions.</p>
+    </li>
+    <li>
+      <div class="t">Abstract interpretation: a unified lattice model for static analysis of programs</div>
+      <div class="m">P. Cousot and R. Cousot. POPL 1977.</div>
+      <p class="u">The framework behind attaching small facts (range, zero excluded, finite) to every node and propagating them.</p>
+    </li>
+    <li>
+      <div class="t">Compilers: Principles, Techniques, and Tools</div>
+      <div class="m">A. Aho, M. Lam, R. Sethi, J. Ullman. 2nd edition, 2006.</div>
+      <p class="u">The course text for the phases used here: lexical analysis, parsing, semantic analysis, intermediate code, optimization and code generation.</p>
+    </li>
+  </ul>
+</div>
+</div>
+
+<div id="view-about" class="page">
+<div class="wrap">
+  <h1>About</h1>
+  <dl class="idcard">
+    <dt>Name</dt><dd>Shaurya Sharma</dd>
+    <dt>Registration number</dt><dd>24BDS0194</dd>
+    <dt>Programme</dt><dd>B.Tech, VIT</dd>
+    <dt>Course</dt><dd>Compiler Design</dd>
+    <dt>Project</dt><dd>Compiler for mathematical expressions with guarded symbolic simplification</dd>
+  </dl>
+
+  <h2>The project</h2>
+  <div class="prose">
+    <p>This is a compiler for mathematical expressions. You give it an expression and optional assumptions about the variables. It simplifies the expression symbolically, proves or checks the conditions each simplification depends on, and produces fast code that gives the same answer as the original expression, including where the original has no answer.</p>
+    <p>The course project covers every compiler phase. The part that goes beyond the course is described on the <a href="#novelty">What is new</a> page, and the work it builds on is on the <a href="#references">References</a> page.</p>
+  </div>
+
+  <h2>Compiler phases</h2>
+  <table>
+    <tr><th>Phase</th><th>What was built</th></tr>
+    <tr><td>Lexical analysis</td><td>Tokens for numbers, names, operators and comments, with line and column in errors</td></tr>
+    <tr><td>Syntax analysis</td><td>Recursive descent parser with operator precedence and function calls</td></tr>
+    <tr><td>Semantic analysis</td><td>Symbol table, input and derived names, checks on assumptions</td></tr>
+    <tr><td>Intermediate representation</td><td>Hash-consed expression graph with range, zero and finiteness facts</td></tr>
+    <tr><td>Optimization</td><td>Guarded simplifier, common-subexpression sharing, strength reduction, accuracy-aware rewrites</td></tr>
+    <tr><td>Code generation</td><td>Three-address code, register virtual machine, C source</td></tr>
+    <tr><td>Run time</td><td>Virtual machine with guard checks and fallback to the original expression</td></tr>
+  </table>
+
+  <h2>How it is built</h2>
+  <dl class="defs">
+    <dt>Compiler</dt><dd>C++17, about 1,550 lines, no libraries.</dd>
+    <dt>This website</dt><dd>One HTML file. The compiler runs inside it as WebAssembly in a Web Worker, so nothing is sent to a server.</dd>
+    <dt>Tests</dt><dd>27 behaviour tests and a random-expression tester that compares compiled code with the original.</dd>
+    <dt>Source files</dt><dd><code>ir.hpp</code> expression graph and analysis, <code>simplify.hpp</code> simplifier and derivative, <code>frontend.hpp</code> lexer and parser, <code>backend.hpp</code> code generation and virtual machine, <code>analysis.hpp</code> checker, verifier and rule discovery, <code>main.cpp</code> command line.</dd>
+  </dl>
+
+  <h2>Run it on your computer</h2>
+  <pre class="snip">make              # build the compiler
+make test         # run the tests
+./bin/mathcc examples/demo.mc --why --cert --verify 20000</pre>
+
+  <h2>Limits</h2>
+  <div class="prose">
+    <ul>
+      <li>Inputs are finite numbers, and overflow of addition and multiplication is ignored.</li>
+      <li>The compiler does not expand or factor polynomials.</li>
+      <li>Rewrite checks are randomised tests, not formal proofs.</li>
+    </ul>
+  </div>
+</div>
+</div>
+
+<footer class="site-foot"><span><b>Compiler Design Project</b></span><span>Shaurya Sharma &middot; Reg. No. 24BDS0194</span></footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let tab = 'rewrites', last = null, discoverData = null, compareData = null, errLine = 0;
+
+const HINTS = {
+  guarded: 'Rewrites apply when proven. Otherwise a run-time check guards the fast path and falls back to the original expression.',
+  conservative: 'Rewrites apply only when proven from your assumptions. No run-time checks are added.',
+  unsafe: 'Applies every rewrite as a typical algebra system would, ignoring side conditions. Use it to see what goes wrong.'
+};
+function mode(){ return document.querySelector('input[name=mode]:checked').value }
+function updHint(){ $('#modehint').textContent = HINTS[mode()] }
+document.querySelectorAll('input[name=mode]').forEach(r => r.addEventListener('change', updHint));
+
+/* ---------- editor ---------- */
+const src = $('#src'), gutter = $('#gutter');
+function drawGutter(){
+  const n = src.value.split('\n').length;
+  gutter.innerHTML = Array.from({length:n},(_,i)=> (i+1===errLine?'<span class="err">'+(i+1)+'</span>':(i+1))).join('\n');
+  gutter.scrollTop = src.scrollTop;
+}
+src.addEventListener('input', () => { errLine = 0; drawGutter(); });
+src.addEventListener('scroll', () => gutter.scrollTop = src.scrollTop);
+src.addEventListener('keydown', e => {
+  if ((e.ctrlKey||e.metaKey) && e.key === 'Enter'){ e.preventDefault(); compile(); }
+});
+
+/* ---------- API ---------- */
+async function api(path, body){
+  if (window.MATHCC_BACKEND) return window.MATHCC_BACKEND(path, body);   // standalone build: compiler runs in the browser
+  const r = await fetch(path, body ? {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)} : {});
+  return r.json();
+}
+function options(over){
+  return Object.assign({source: src.value, mode: mode(), stable: $('#stable').checked, cert: $('#cert').checked,
+    point: $('#point').value.replace(/\s+/g,''), verify: +$('#verify').value||0, bench: +$('#bench').value||0}, over||{});
+}
+async function compile(){
+  const btn = $('#run'); btn.disabled = true; btn.textContent = 'Compiling…'; $('#status').textContent = '';
+  compareData = null;
+  try{
+    const d = await api('/api/compile', options());
+    if (d.error){
+      last = null; const m = d.error.match(/line (\d+)/); errLine = m ? +m[1] : 0; drawGutter();
+      $('#panel').innerHTML = '<div class="error">'+esc(d.error)+'</div>';
+      $('#status').textContent = errLine ? 'Fix line '+errLine+' and compile again.' : ''; window.scrollTo(0,0);
+    } else { last = d; errLine = 0; drawGutter(); render(); }
+  }catch(e){
+    $('#panel').innerHTML = '<div class="error">Could not reach the server. Start it with: python3 web/server.py</div>';
+  }
+  btn.disabled = false; btn.textContent = 'Compile';
+}
+$('#run').addEventListener('click', compile);
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  tab = b.dataset.tab;
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b));
+  render();
+}));
+function render(){
+  $('#status').textContent = '';
+  if (tab === 'discover') return renderDiscover();
+  if (!last) { if (!$('#panel').querySelector('.error')) $('#panel').innerHTML = '<p class="empty">Write a program and choose Compile.</p>'; return; }
+  ({rewrites: renderRewrites, code: renderCode, checks: renderChecks, speed: renderSpeed})[tab]();
+}
+
+/* ---------- rewrites ---------- */
+function renderRewrites(){
+  const d = last;
+  let h = '<p class="legend"><span><i style="background:var(--proven)"></i>proven from your assumptions</span>'
+        + '<span><i style="background:var(--gate)"></i>checked while running, original used if it fails</span>'
+        + '<span><i style="background:var(--bad)"></i>rewrite skipped</span></p>';
+  d.outputs.forEach(o => {
+    const changed = o.original !== o.simplified;
+    h += '<article class="rewrite"><h3>'+esc(o.name)+'</h3>';
+    if (changed) h += '<div class="before">'+esc(o.original)+'</div>';
+    h += '<div class="after'+(changed?'':' same')+'">'+esc(o.simplified)+'</div><div class="gates">';
+    o.guards.forEach(g => h += '<span class="gate run-time">Checked at run time <code>'+esc(g)+'</code></span>');
+    if (o.proven) h += '<span class="gate proven">'+o.proven+' condition'+(o.proven>1?'s':'')+' proven from assumptions</span>';
+    if (!o.guards.length && !o.proven) h += '<span class="gate none">'+(changed?'Needs no guard':'Already in simplest form')+'</span>';
+    if (o.skipped) h += '<span class="gate skip">'+esc(o.skipped)+'</span>';
+    h += '</div>';
+    h += whyHtml(o);
+    const s = o.size;
+    h += '<div class="meta"><span>'+(s.vmFrom??'?')+' → '+(s.vmTo??'?')+' instructions</span><span>'+(s.dagFrom??'?')+' → '+(s.dagTo??'?')+' nodes</span></div>';
+    if (o.stability) h += '<div class="note">'+esc(o.stability.replace(/^stability:\s*/,'Accuracy: '))+'</div>';
+    const ev = d.evaluation.find(e => e.name === o.name);
+    if (ev) h += '<div class="evalline">At <b>'+esc($('#point').value||'')+'</b>: original <b>'+esc(ev.original)+'</b>, compiled <b>'+esc(ev.compiled)+'</b>'
+               + (ev.fallback ? ' — a guard failed here, so the original expression was used.' : '.') + '</div>';
+    h += '</article>';
+  });
+  $('#panel').innerHTML = h;
+}
+
+/* ---------- code ---------- */
+let codeSel = 0;
+function renderCode(){
+  const d = last;
+  let h = '<div class="pick"><label for="osel">Output</label><select id="osel">'
+        + d.outputs.map((o,i)=>'<option value="'+i+'"'+(i===codeSel?' selected':'')+'>'+esc(o.name)+'</option>').join('') + '</select></div>';
+  const o = d.outputs[Math.min(codeSel, d.outputs.length-1)];
+  h += '<h2>Three-address code (fast path)</h2><pre class="code">'+esc(o.tac.concat([o.result]).join('\n'))+'</pre>';
+  if (o.guards.length) h += '<p class="note">Guards evaluated alongside: '+o.guards.map(esc).join(', ')+'. If any is false, the program runs the original expression instead.</p>';
+  h += '<h2>C source for all outputs</h2><pre class="code">'+esc(d.c)+'</pre>';
+  $('#panel').innerHTML = h;
+  $('#osel').addEventListener('change', e => { codeSel = +e.target.value; renderCode(); });
+}
+
+/* ---------- checks ---------- */
+function renderChecks(){
+  const d = last; let h = '';
+  h += '<h2>Rewrite certificates</h2>';
+  if (!d.cert) h += '<p class="empty" style="padding:6px 0">Turn on “Check every rewrite step” and compile again.</p>';
+  else {
+    const c = d.cert;
+    h += '<div class="stat"><div><b>'+c.verified+' / '+c.steps+'</b>rewrite steps verified</div>'
+       + '<div><b class="'+(c.failed?'badtxt':'')+'">'+c.failed+'</b>steps that failed</div>'
+       + '<div><b>'+c.witnessed+' / '+c.conditional+'</b>guards shown necessary</div></div>';
+    h += '<p class="note">A guard is necessary when removing it produces a wrong answer. Each such case has a concrete input:</p>';
+    c.notes.forEach(n => h += '<pre class="code" style="max-height:none;margin-bottom:8px;white-space:pre-wrap">'+esc(n)+'</pre>');
+  }
+  h += '<h2>Compiled vs original on random inputs</h2>';
+  if (!d.verify.length) h += '<p class="empty" style="padding:6px 0">Set a number of random inputs and compile again.</p>';
+  else {
+    h += '<table><tr><th>Output</th><th>Inputs tried</th><th>Wrong results</th><th>Guard failures (original used)</th><th>Skipped as unstable</th></tr>';
+    d.verify.forEach(v => h += '<tr><td class="mono">'+esc(v.name)+'</td><td class="num">'+v.points.toLocaleString()+'</td><td class="num '+(v.mismatches?'badtxt':'good')+'">'+v.mismatches.toLocaleString()
+      +(v.example?'<br><span style="font:12px var(--mono);font-weight:400;color:var(--dim)">'+esc(v.example)+'</span>':'')+'</td><td class="num">'+v.fallbacks.toLocaleString()+'</td><td class="num">'+v.skipped+'</td></tr>');
+    h += '</table>';
+  }
+  h += '<h2>Why guards matter</h2><p class="note" style="margin:0 0 12px">Compile the same program the way a typical algebra system would and count the wrong answers.</p>'
+     + '<button class="btn2" id="cmp">Compare with classic mode</button><div id="cmpout" style="margin-top:14px"></div>';
+  $('#panel').innerHTML = h;
+  $('#cmp').addEventListener('click', compare);
+  if (compareData) showCompare();
+}
+async function compare(){
+  const b = $('#cmp'); b.disabled = true; b.textContent = 'Comparing…';
+  const base = {cert:false, bench:0, point:'', stable:false, verify:20000};
+  const [g, u] = await Promise.all([api('/api/compile', options(Object.assign({}, base, {mode:'guarded'}))), api('/api/compile', options(Object.assign({}, base, {mode:'unsafe'})))]);
+  compareData = (g.error || u.error) ? {error: g.error || u.error} : {g, u};
+  b.disabled = false; b.textContent = 'Compare with classic mode'; showCompare();
+}
+function showCompare(){
+  const el = $('#cmpout'); if (!el) return;
+  if (compareData.error) { el.innerHTML = '<div class="error">'+esc(compareData.error)+'</div>'; return; }
+  const {g,u} = compareData;
+  let h = '<table><tr><th>Output</th><th>Guarded: wrong results</th><th>Classic: wrong results</th><th>Classic example</th></tr>';
+  g.verify.forEach((v,i) => { const x = u.verify[i];
+    h += '<tr><td class="mono">'+esc(v.name)+'</td><td class="num good">'+v.mismatches+'</td><td class="num '+(x.mismatches?'badtxt':'')+'">'+x.mismatches.toLocaleString()+'</td><td class="mono">'+esc(x.example||'—')+'</td></tr>'; });
+  el.innerHTML = h + '</table>';
+}
+
+/* ---------- speed ---------- */
+function renderSpeed(){
+  const d = last;
+  if (!d.bench.length){ $('#panel').innerHTML = '<p class="empty">Set a number of evaluations and compile again.</p>'; return; }
+  let h = '<p class="note" style="margin:0 0 14px">Nanoseconds per evaluation on this machine; shorter is faster. “Tree walk” is the naive way to evaluate the original expression.</p><div class="bars">';
+  d.bench.forEach(b => {
+    const max = Math.max(b.tree, b.vm, b.fast);
+    const row = (label, v, color) => '<div class="bl"><span>'+label+'</span><div class="track"><div class="fill" style="width:'+(100*v/max).toFixed(1)+'%;background:'+color+'"></div></div><span class="v">'+v.toFixed(1)+' ns</span></div>';
+    h += '<div class="bar"><h3><span>'+esc(b.name)+'</span><span>'+b.speedup.toFixed(1)+'× faster than tree walk</span></h3>'
+       + row('Tree walk', b.tree, '#9AA7B6') + row('VM, original', b.vm, '#6C86A8') + row('VM, compiled + guards', b.fast, '#0E7C86') + '</div>';
+  });
+  $('#panel').innerHTML = h + '</div>';
+}
+
+/* ---------- discovery ---------- */
+async function renderDiscover(){
+  if (discoverData) return showDiscover();
+  $('#panel').innerHTML = '<p class="note" style="margin:0 0 12px">Enumerates thousands of small expressions in x, groups the ones that behave identically on a region of inputs, and reports identities the simplifier does not already know, with the region where each holds.</p><button class="btn2" id="dgo">Search for new rules</button>';
+  $('#dgo').addEventListener('click', async () => {
+    $('#dgo').disabled = true; $('#dgo').textContent = 'Searching…';
+    discoverData = await api('/api/discover'); showDiscover();
+  });
+}
+function showDiscover(){
+  const d = discoverData;
+  if (d.error){ $('#panel').innerHTML = '<div class="error">'+esc(d.error)+'</div>'; return; }
+  let h = '<p class="note" style="margin:0 0 12px">'+d.summary.map(esc).join('<br>')+'</p><table><tr><th>Expression</th><th>Equals</th><th>When</th><th>Re-tested</th></tr>';
+  d.rules.forEach(r => h += '<tr class="rule"><td>'+esc(r.lhs)+'</td><td>'+esc(r.rhs)+'</td><td><span class="pill'+(r.cond==='always'?'':' c')+'">'+esc(r.cond)+'</span></td><td>'+(r.verified?'<span class="good">passed</span>':'<span class="badtxt">failed</span>')+'</td></tr>');
+  $('#panel').innerHTML = h + '</table>';
+}
+
+
+
+/* ---------- pages ---------- */
+const ROUTES = ['home','workbench','novelty','references','about'];
+const TITLES = {home:'', workbench:'Workbench — ', novelty:'What is new — ', references:'References — ', about:'About — '};
+function route(){
+  let r = (location.hash || '#home').slice(1); if (!ROUTES.includes(r)) r = 'home';
+  document.querySelectorAll('.page').forEach(p => p.classList.toggle('on', p.id === 'view-' + r));
+  document.querySelectorAll('.site nav a').forEach(a => a.dataset.route === r ? a.setAttribute('aria-current','page') : a.removeAttribute('aria-current'));
+  document.title = TITLES[r] + 'Compiler Design Project — Shaurya Sharma';
+  window.scrollTo(0, 0);
+}
+addEventListener('hashchange', route); route();
+
+/* ---------- explanations (Why?) ---------- */
+const RULE_TEXT = {
+  'merge-exponents':'Powers of the same base were combined by adding their exponents.',
+  'cancel-factor':'A factor and its reciprocal were cancelled.',
+  'cancel-terms':'Equal terms with opposite signs were cancelled to zero.',
+  'combine-terms':'Equal terms were added together.',
+  'trig-identity':'Used sin²(a) + cos²(a) = 1.',
+  'zero-product':'Anything multiplied by zero was replaced by zero.',
+  'power-of-power':'Applied (a^m)^n = a^(m·n).',
+  'abs-from-sqrt':'The square root of a square is the absolute value, so sqrt(a²) became abs(a). This is true for every a.',
+  'abs-sign':'abs was removed because the sign of the value is known from your assumptions.',
+  'abs-idempotent':'abs of an abs is the same abs.',
+  'odd-even':'Moved a minus sign out of sin, or removed it from cos.',
+  'ln-exp':'Used ln(exp(a)) = a.', 'ln-power':'Used ln(a^n) = n·ln(a).', 'exp-ln':'Used exp(ln(a)) = a.',
+  'fold-constants':'Calculated a part that contains only numbers.',
+  'distribute-negation':'Passed a minus sign through a sum so its terms can combine.',
+  'division-as-power':'Read a division as multiplying by a power with exponent −1, so it can combine with other factors.',
+  'subtraction-as-term':'Read a subtraction as adding a term with a minus sign, so it can combine with other terms.',
+  'sqrt-as-power':'Read a square root as a power of one half.',
+  'negation-as-coefficient':'Read a minus sign as a coefficient of −1.',
+  'canonical-form':'Put the terms in a standard order.',
+  'stable-1-cos':'Replaced 1 − cos(a) by 2·sin²(a/2), which keeps its digits when a is small.',
+  'stable-expm1':'Replaced exp(a) − 1 by expm1(a), which keeps its digits when a is small.',
+  'stable-log1p':'Replaced ln(1 + a) by log1p(a), which keeps its digits when a is small.',
+  'stable-sqrt-diff':'Replaced sqrt(u) − sqrt(v) by (u − v)/(sqrt(u) + sqrt(v)), which avoids subtracting nearly equal numbers.'
+};
+function whyHtml(o){
+  const steps = o.why || [], skips = o.skips || [];
+  if (!steps.length && !skips.length) return '<details class="why"><summary>Why?</summary><p class="say">No rewrite was needed. The expression was already in its simplest form.</p></details>';
+  const runtime = steps.filter(s => s.guards.some(g => g.status === 'runtime')).length;
+  let h = '<details class="why"><summary>Why? ('+steps.length+' step'+(steps.length===1?'':'s')+(runtime?', '+runtime+' with a run-time check':'')+')</summary><ol>';
+  steps.forEach(st => {
+    const rt = st.guards.some(g => g.status === 'runtime'), pv = st.guards.length && st.guards.every(g => g.status === 'proven');
+    h += '<li class="'+(rt?'rt':pv?'pv':'')+'"><div class="ex"><s>'+esc(st.pre)+'</s><span>→</span>'+esc(st.post)+'</div>'
+       + '<p class="say">'+esc(RULE_TEXT[st.rule] || 'Applied a rewrite rule.')+'</p>';
+    st.guards.forEach(g => {
+      const t = '<code>'+esc(g.text)+'</code>';
+      if (g.status === 'proven') h += '<p class="say p">Valid only when '+t+'. Your assumptions prove this, so no check is needed.</p>';
+      else if (g.status === 'ignored') h += '<p class="say r">Valid only when '+t+'. Classic mode does not check this, so the result can be wrong when it fails.</p>';
+      else h += '<p class="say r">Valid only when '+t+'. This cannot be proven, so the compiled program checks it while running and uses the original expression if it fails.</p>';
+    });
+    h += '<div class="rule">'+esc(st.rule)+'</div></li>';
+  });
+  h += '</ol>';
+  skips.forEach(k => h += '<div class="skipline">A rewrite that needs <code>'+esc(k.guard)+'</code> was skipped: '+esc(k.reason)+'.</div>');
+  return h + '</details>';
+}
+
+/* ---------- opening animation ---------- */
+function intro(){
+  const el = document.getElementById('intro');
+  if (!el) return;
+  if (location.hash && location.hash !== '#home') { el.remove(); return; }
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !el.animate){ el.remove(); return; }
+  const lines = [['x/x = 1','x \u2260 0 ?'],['\u221A(x\u00B2) = x','x < 0 ?'],['\u221Az\u00B7\u221Az = z','z < 0 ?'],['(w+1)/(w+1) = 1','w = \u22121 ?'],
+                 ['ln(x\u00B2) = 2 ln x','x < 0 ?'],['0\u00B7x = 0','x = \u221E ?'],['exp(ln x) = x','x < 0 ?'],['x\u2212x = 0','x = NaN ?']];
+  const N = 16, sheets = [];
+  for (let i = 0; i < N; i++){
+    const [eq, why] = lines[i % lines.length], d = document.createElement('div');
+    d.className = 'sheet';
+    d.innerHTML = '<div class="x">'+eq+'</div><div class="q">'+why+'</div><div>&nbsp;</div><div style="font-size:15px;color:#9AA7B6">'+'draft '+(i+1)+'</div>';
+    el.insertBefore(d, el.querySelector('.skip')); sheets.push(d);
+  }
+  const rnd = (a,b) => a + Math.random()*(b-a);
+  const anims = sheets.map((d,i) => {
+    const r0 = rnd(-9,9), stack = (i - N/2) * 1.2;
+    d.style.transform = 'translate('+stack+'px,'+(-stack*.6)+'px) rotate('+r0+'deg)';
+    // wind blows everything off to the right and up, with a lift first
+    const ang = rnd(-.9,-.1), dist = rnd(130,190), dx = Math.cos(ang)*dist, dy = Math.sin(ang)*dist*.9;
+    const lift = rnd(-6,-2), spin = rnd(-540,540), sway = rnd(-4,4);
+    return d.animate([
+      {transform:'translate('+stack+'px,'+(-stack*.6)+'px) rotate('+r0+'deg)', offset:0, easing:'cubic-bezier(.3,0,.6,1)'},
+      {transform:'translate('+(stack-14)+'px,'+(-stack*.6+lift*4)+'px) rotate('+(r0+sway)+'deg) scale(1.03)', offset:.16, easing:'cubic-bezier(.5,0,.85,.45)'},
+      {transform:'translate('+(dx*.55)+'vw,'+(dy*.5+lift*8)+'vh) rotate('+(r0+spin*.5)+'deg) scale(.92)', offset:.62},
+      {transform:'translate('+dx+'vw,'+dy+'vh) rotate('+(r0+spin)+'deg) scale(.8)', offset:1}
+    ], {duration: rnd(1300,1800), delay: 450 + i*40 + rnd(0,100), fill:'forwards'});
+  });
+  const finish = () => {
+    if (el.dataset.done) return; el.dataset.done = 1;
+    anims.forEach(a => a.cancel());
+    el.animate([{opacity:1},{opacity:0}], {duration:350, fill:'forwards'}).onfinish = () => el.remove();
+  };
+  // the backdrop and title leave once most sheets are gone
+  const total = Math.max(...anims.map(a => a.effect.getComputedTiming().endTime));
+  const title = el.querySelector('.title'); title.style.opacity = 0;
+  setTimeout(() => { title.animate([{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'none'}],{duration:600,fill:'forwards',easing:'ease-out'}); }, 1200);
+  setTimeout(finish, Math.max(total - 150, 2900));
+  document.getElementById('skip').addEventListener('click', finish);
+  addEventListener('keydown', e => { if (e.key === 'Escape') finish(); }, {once:true});
+}
+intro();
+
+/* ---------- start ---------- */
+(async function init(){
+  updHint();
+  try{
+    const ex = await api('/api/examples');
+    const sel = $('#example');
+    sel.innerHTML = ex.map((e,i)=>'<option value="'+i+'">'+esc(e.name)+'</option>').join('');
+    const POINTS = {demo:'x=0, y=2, z=-4, w=-1', stable:'x=0.001'};
+    sel.addEventListener('change', () => { src.value = ex[+sel.value].source; $('#point').value = POINTS[ex[+sel.value].name] || ''; errLine = 0; drawGutter(); compile(); });
+    const demo = ex.findIndex(e => e.name === 'demo'); sel.value = demo >= 0 ? demo : 0;
+    src.value = ex[+sel.value].source; $('#point').value = POINTS[ex[+sel.value].name] || '';
+  }catch(e){ src.value = 'assume y > 0\na = (x*x)/x\nb = sqrt(x^2)\n'; }
+  drawGutter(); compile();
+})();
+</script>
+</body>
+</html>
